@@ -4,44 +4,47 @@ import { useState, useEffect } from 'react';
 
 export default function EntryList() {
   const [entryList, setEntryList] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    // エントリーリストを取得
-    const storedEntryList = localStorage.getItem('entryList');
-    if (storedEntryList) {
-      try {
-        setEntryList(JSON.parse(storedEntryList));
-      } catch (e) {
-        setEntryList([]);
-      }
-    }
-
-    // ローカルストレージの変更を監視
-    const handleStorageChange = () => {
-      const updatedList = localStorage.getItem('entryList');
-      if (updatedList) {
+  const fetchEntries = async () => {
+    try {
+      const response = await fetch('/api/entries');
+      const data = await response.json();
+      setEntryList(data.entries || []);
+    } catch (error) {
+      console.error('Failed to fetch entries:', error);
+      // フォールバック: ローカルストレージから取得
+      const storedEntryList = localStorage.getItem('entryList');
+      if (storedEntryList) {
         try {
-          setEntryList(JSON.parse(updatedList));
+          setEntryList(JSON.parse(storedEntryList));
         } catch (e) {
           setEntryList([]);
         }
-      } else {
-        setEntryList([]);
       }
-    };
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    window.addEventListener('storage', handleStorageChange);
+  useEffect(() => {
+    fetchEntries();
     
-    // 定期的にチェック（同じタブ内での変更も検知）
+    // 定期的に更新（5秒ごと）
     const interval = setInterval(() => {
-      handleStorageChange();
-    }, 1000);
+      fetchEntries();
+    }, 5000);
 
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      clearInterval(interval);
-    };
+    return () => clearInterval(interval);
   }, []);
+
+  if (loading) {
+    return (
+      <div className="rounded-2xl bg-black/70 p-6 backdrop-blur-sm shadow-2xl md:p-8 mt-6">
+        <p className="text-center text-white/60">読み込み中...</p>
+      </div>
+    );
+  }
 
   if (entryList.length === 0) {
     return null;
@@ -68,4 +71,3 @@ export default function EntryList() {
     </div>
   );
 }
-
