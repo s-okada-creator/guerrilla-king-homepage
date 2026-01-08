@@ -1,5 +1,7 @@
 'use client';
 
+import { useState, useEffect } from 'react';
+
 interface HistoricalWinner {
   round: number;
   winner: string;
@@ -8,19 +10,23 @@ interface HistoricalWinner {
 }
 
 export default function HistoricalWinners() {
-  // モックデータ（後でAPIから取得）
-  const historicalWinners: HistoricalWinner[] = [
-    { round: 1, winner: 'GR-A3X9K2', points: 150, date: '2024年1月' },
-    { round: 2, winner: 'GR-B7Y2M1', points: 180, date: '2024年2月' },
-    { round: 3, winner: 'GR-C4Z8N3', points: 200, date: '2024年3月' },
-    { round: 4, winner: 'GR-D1W5O4', points: 165, date: '2024年4月' },
-    { round: 5, winner: 'GR-E9V6P5', points: 190, date: '2024年5月' },
-    { round: 6, winner: 'GR-A3X9K2', points: 175, date: '2024年6月' },
-    { round: 7, winner: 'GR-F2U7Q6', points: 210, date: '2024年7月' },
-    { round: 8, winner: 'GR-A3X9K2', points: 195, date: '2024年8月' },
-    { round: 9, winner: 'GR-G5T8R7', points: 185, date: '2024年9月' },
-    { round: 10, winner: 'GR-A3X9K2', points: 220, date: '2024年10月' },
-  ];
+  const [historicalWinners, setHistoricalWinners] = useState<HistoricalWinner[]>([]);
+
+  useEffect(() => {
+    // 歴代優勝者データを取得（後でAPIから取得）
+    const storedWinners = localStorage.getItem('historicalWinners');
+    if (storedWinners) {
+      try {
+        setHistoricalWinners(JSON.parse(storedWinners));
+      } catch (e) {
+        setHistoricalWinners([]);
+      }
+    }
+  }, []);
+
+  if (historicalWinners.length === 0) {
+    return null;
+  }
 
   return (
     <div className="rounded-2xl bg-black/70 p-6 backdrop-blur-sm shadow-2xl md:p-8">
@@ -47,4 +53,3 @@ export default function HistoricalWinners() {
     </div>
   );
 }
-

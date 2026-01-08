@@ -3,13 +3,13 @@
 import { useState, useEffect } from 'react';
 
 interface PointEntryFormProps {
-  entryPeriodDays?: number;
-  releaseDate?: Date;
+  eventPeriodDays?: number; // 開催期間（エントリー締め切り後）
+  isFirstRelease?: boolean; // 初回リリースかどうか
 }
 
 export default function PointEntryForm({ 
-  entryPeriodDays = 2,
-  releaseDate 
+  eventPeriodDays = 5,
+  isFirstRelease = true
 }: PointEntryFormProps) {
   const [gameUsername, setGameUsername] = useState('');
   const [points, setPoints] = useState('');
@@ -19,49 +19,73 @@ export default function PointEntryForm({
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [entryStartDate, setEntryStartDate] = useState<Date | null>(null);
   const [entryEndDate, setEntryEndDate] = useState<Date | null>(null);
+  const [eventEndDate, setEventEndDate] = useState<Date | null>(null);
   const [isEntryPeriodActive, setIsEntryPeriodActive] = useState(true);
+  const [isEventPeriodActive, setIsEventPeriodActive] = useState(true);
   const [entryList, setEntryList] = useState<string[]>([]);
   const [dailyEntries, setDailyEntries] = useState<Record<string, number>>({});
 
   useEffect(() => {
-    // リリース日の設定（デフォルトは1月9日）
-    const defaultReleaseDate = releaseDate || new Date('2026-01-09T00:00:00');
     const today = new Date();
     
-    // エントリー開始日と終了日の設定
     const storedStartDate = localStorage.getItem('entryStartDate');
     const storedEndDate = localStorage.getItem('entryEndDate');
+    const storedEventEndDate = localStorage.getItem('eventEndDate');
     const storedEntryList = localStorage.getItem('entryList');
     const storedDailyEntries = localStorage.getItem('dailyEntries');
     
-    if (storedStartDate && storedEndDate) {
+    if (storedStartDate && storedEndDate && storedEventEndDate) {
       const startDate = new Date(storedStartDate);
       const endDate = new Date(storedEndDate);
+      const eventEnd = new Date(storedEventEndDate);
       setEntryStartDate(startDate);
       setEntryEndDate(endDate);
-      setIsEntryPeriodActive(today >= startDate && today < endDate);
+      setEventEndDate(eventEnd);
+      setIsEntryPeriodActive(today >= startDate && today <= endDate);
+      setIsEventPeriodActive(today <= eventEnd);
     } else {
-      // 初回設定：リリース日から2日間
-      const startDate = defaultReleaseDate;
-      const endDate = new Date(startDate);
-      endDate.setDate(endDate.getDate() + entryPeriodDays);
+      // 初回設定
+      let startDate: Date;
+      let endDate: Date;
+      
+      if (isFirstRelease) {
+        // 今回のみ特別：8日から9日23:59:59まで
+        startDate = new Date('2026-01-08T00:00:00');
+        endDate = new Date('2026-01-09T23:59:59');
+      } else {
+        // 通常：今日の0時から23:59:59まで
+        startDate = new Date(today);
+        startDate.setHours(0, 0, 0, 0);
+        endDate = new Date(today);
+        endDate.setHours(23, 59, 59, 999);
+      }
+      
+      // 開催期間：エントリー終了日の翌日から5日間
+      const eventEnd = new Date(endDate);
+      eventEnd.setDate(eventEnd.getDate() + 1); // エントリー終了日の翌日
+      eventEnd.setHours(0, 0, 0, 0);
+      eventEnd.setDate(eventEnd.getDate() + eventPeriodDays); // 5日間追加
+      eventEnd.setHours(23, 59, 59, 999);
+      
       setEntryStartDate(startDate);
       setEntryEndDate(endDate);
-      setIsEntryPeriodActive(today >= startDate && today < endDate);
+      setEventEndDate(eventEnd);
+      setIsEntryPeriodActive(today >= startDate && today <= endDate);
+      setIsEventPeriodActive(today <= eventEnd);
+      
       localStorage.setItem('entryStartDate', startDate.toISOString());
       localStorage.setItem('entryEndDate', endDate.toISOString());
+      localStorage.setItem('eventEndDate', eventEnd.toISOString());
     }
 
-    // エントリーリストの取得
     if (storedEntryList) {
       setEntryList(JSON.parse(storedEntryList));
     }
 
-    // 1日のエントリー回数の取得
     if (storedDailyEntries) {
       setDailyEntries(JSON.parse(storedDailyEntries));
     }
-  }, [entryPeriodDays, releaseDate]);
+  }, [eventPeriodDays, isFirstRelease]);
 
   // 今日の日付をキーとして取得
   const getTodayKey = () => {
@@ -106,6 +130,12 @@ export default function PointEntryForm({
         setError('エントリーされていません');
         return;
       }
+    }
+
+    // 開催期間外の場合
+    if (!isEventPeriodActive) {
+      setError('開催期間が終了しました');
+      return;
     }
 
     // 1日3回制限のチェック
@@ -164,6 +194,10 @@ export default function PointEntryForm({
     return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日 ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
   };
 
+  const formatDateTime = (date: Date) => {
+    return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日 ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}:${date.getSeconds().toString().padStart(2, '0')}`;
+  };
+
   const todayEntryCount = gameUsername.trim() ? getTodayEntryCount(gameUsername.trim()) : 0;
 
   return (
@@ -174,11 +208,26 @@ export default function PointEntryForm({
           <div className="rounded-lg bg-blue-500/20 p-3 text-sm text-blue-200 border border-blue-500/30">
             {isEntryPeriodActive ? (
               <p>
-                エントリー期間: {formatDate(entryStartDate)} ～ {formatDate(entryEndDate)}
+                エントリー期間: {formatDateTime(entryStartDate)} ～ {formatDateTime(entryEndDate)}
               </p>
             ) : (
               <p className="text-red-300">
                 エントリー期間は終了しました
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* 開催期間表示 */}
+        {eventEndDate && !isEntryPeriodActive && (
+          <div className="rounded-lg bg-green-500/20 p-3 text-sm text-green-200 border border-green-500/30">
+            {isEventPeriodActive ? (
+              <p>
+                開催期間中: {eventEndDate && formatDate(eventEndDate)}まで
+              </p>
+            ) : (
+              <p className="text-red-300">
+                開催期間は終了しました
               </p>
             )}
           </div>
@@ -240,7 +289,7 @@ export default function PointEntryForm({
 
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || !isEventPeriodActive}
           className="w-full rounded-lg bg-blue-600 px-6 py-3 font-semibold text-white transition-all hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? '登録中...' : 'ポイントを記入する'}

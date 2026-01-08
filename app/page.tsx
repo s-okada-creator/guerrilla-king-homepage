@@ -5,7 +5,6 @@ import PointEntryForm from '@/components/PointEntryForm';
 import RulesSection from '@/components/RulesSection';
 import RankingSection from '@/components/RankingSection';
 import HistoricalWinners from '@/components/HistoricalWinners';
-import HallOfFame from '@/components/HallOfFame';
 
 export default function Home() {
   return (
@@ -31,8 +30,8 @@ export default function Home() {
             {/* ポイント記入フォーム */}
             <div className="rounded-2xl bg-black/70 p-6 backdrop-blur-sm shadow-2xl md:p-8">
               <PointEntryForm 
-                entryPeriodDays={2} 
-                releaseDate={new Date('2026-01-09T00:00:00')}
+                eventPeriodDays={5}
+                isFirstRelease={true}
               />
             </div>
           </div>
@@ -53,16 +52,9 @@ export default function Home() {
         </section>
 
         {/* 歴代ゲリラ王セクション */}
-        <section className="min-h-screen flex items-start justify-center p-4 pt-16">
-          <div className="w-full max-w-4xl">
-            <HistoricalWinners />
-          </div>
-        </section>
-
-        {/* 殿堂入りセクション */}
         <section className="min-h-screen flex items-start justify-center p-4 pt-16 pb-16">
           <div className="w-full max-w-4xl">
-            <HallOfFame />
+            <HistoricalWinners />
           </div>
         </section>
       </div>
