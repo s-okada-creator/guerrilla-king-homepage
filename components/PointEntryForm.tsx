@@ -166,7 +166,20 @@ export default function PointEntryForm({
     try {
       const normalizedUsername = gameUsername.trim();
       
-      // エントリーリストに追加
+      // APIに送信
+      const response = await fetch('/api/entries', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username: normalizedUsername }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to register entry');
+      }
+
+      // ローカルストレージにも保存（フォールバック用）
       const updatedList = [...entryList, normalizedUsername];
       setEntryList(updatedList);
       localStorage.setItem('entryList', JSON.stringify(updatedList));
@@ -175,6 +188,9 @@ export default function PointEntryForm({
       setIsRegistered(true);
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
+      
+      // エントリーリストを再取得
+      window.dispatchEvent(new Event('storage'));
     } catch (err) {
       setError('エントリーの登録に失敗しました。もう一度お試しください。');
     } finally {

@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 export async function GET() {
   try {
     // Supabaseが設定されていない場合は、空配列を返す
-    if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    if (!supabase) {
       return NextResponse.json({ entries: [] });
     }
 
@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Supabaseが設定されていない場合は、成功を返す（ローカルストレージにフォールバック）
-    if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    if (!supabase) {
       return NextResponse.json({ success: true });
     }
 
@@ -69,4 +69,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
