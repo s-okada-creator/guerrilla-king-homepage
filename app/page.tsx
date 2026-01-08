@@ -2,6 +2,7 @@
 
 import BackgroundVideo from '@/components/BackgroundVideo';
 import PointEntryForm from '@/components/PointEntryForm';
+import EntryList from '@/components/EntryList';
 import RulesSection from '@/components/RulesSection';
 import RankingSection from '@/components/RankingSection';
 import HistoricalWinners from '@/components/HistoricalWinners';
@@ -35,6 +36,9 @@ export default function Home() {
                 isTestMode={true}
               />
             </div>
+
+            {/* エントリー済みリスト */}
+            <EntryList />
           </div>
         </section>
 
