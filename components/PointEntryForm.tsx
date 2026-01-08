@@ -17,6 +17,7 @@ export default function PointEntryForm({
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [showEntryConfirmDialog, setShowEntryConfirmDialog] = useState(false);
   const [entryStartDate, setEntryStartDate] = useState<Date | null>(null);
   const [entryEndDate, setEntryEndDate] = useState<Date | null>(null);
   const [eventEndDate, setEventEndDate] = useState<Date | null>(null);
@@ -24,6 +25,7 @@ export default function PointEntryForm({
   const [isEventPeriodActive, setIsEventPeriodActive] = useState(true);
   const [entryList, setEntryList] = useState<string[]>([]);
   const [dailyEntries, setDailyEntries] = useState<Record<string, number>>({});
+  const [isRegistered, setIsRegistered] = useState(false);
 
   useEffect(() => {
     const today = new Date();
@@ -33,6 +35,7 @@ export default function PointEntryForm({
     const storedEventEndDate = localStorage.getItem('eventEndDate');
     const storedEntryList = localStorage.getItem('entryList');
     const storedDailyEntries = localStorage.getItem('dailyEntries');
+    const storedRegisteredUsername = localStorage.getItem('registeredUsername');
     
     if (storedStartDate && storedEndDate && storedEventEndDate) {
       const startDate = new Date(storedStartDate);
@@ -85,6 +88,12 @@ export default function PointEntryForm({
     if (storedDailyEntries) {
       setDailyEntries(JSON.parse(storedDailyEntries));
     }
+
+    // 登録済みかチェック
+    if (storedRegisteredUsername) {
+      setIsRegistered(true);
+      setGameUsername(storedRegisteredUsername);
+    }
   }, [eventPeriodDays, isFirstRelease]);
 
   // 今日の日付をキーとして取得
@@ -108,7 +117,50 @@ export default function PointEntryForm({
     return dailyEntries[userKey] || 0;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // エントリー期間中のエントリー処理
+  const handleEntrySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setSuccess(false);
+    
+    const normalizedUsername = gameUsername.trim();
+    
+    // 既に登録済みの場合
+    if (isRegistered) {
+      setError('既にエントリー済みです。名前は変更できません。');
+      return;
+    }
+
+    // 確認ダイアログを表示
+    setShowEntryConfirmDialog(true);
+  };
+
+  // エントリー確認処理
+  const handleEntryConfirm = async () => {
+    setShowEntryConfirmDialog(false);
+    setLoading(true);
+
+    try {
+      const normalizedUsername = gameUsername.trim();
+      
+      // エントリーリストに追加
+      const updatedList = [...entryList, normalizedUsername];
+      setEntryList(updatedList);
+      localStorage.setItem('entryList', JSON.stringify(updatedList));
+      localStorage.setItem('registeredUsername', normalizedUsername);
+      
+      setIsRegistered(true);
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 3000);
+    } catch (err) {
+      setError('エントリーの登録に失敗しました。もう一度お試しください。');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // エントリー期間後のポイント記入処理
+  const handlePointSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSuccess(false);
@@ -120,16 +172,14 @@ export default function PointEntryForm({
       return;
     }
 
-    // エントリー期間外の場合、エントリーリストをチェック
-    if (!isEntryPeriodActive) {
-      const isRegistered = entryList.some(
-        (name) => name.trim().toLowerCase() === normalizedUsername.toLowerCase()
-      );
-      
-      if (!isRegistered) {
-        setError('エントリーされていません');
-        return;
-      }
+    // エントリーリストをチェック
+    const isRegisteredUser = entryList.some(
+      (name) => name.trim().toLowerCase() === normalizedUsername.toLowerCase()
+    );
+    
+    if (!isRegisteredUser) {
+      setError('エントリーされていません');
+      return;
     }
 
     // 開催期間外の場合
@@ -157,15 +207,6 @@ export default function PointEntryForm({
       const todayKey = getTodayKey();
       const userKey = `${todayKey}-${normalizedUsername.toLowerCase()}`;
 
-      // エントリー期間中の場合、エントリーリストに追加
-      if (isEntryPeriodActive) {
-        if (!entryList.some(name => name.trim().toLowerCase() === normalizedUsername.toLowerCase())) {
-          const updatedList = [...entryList, normalizedUsername];
-          setEntryList(updatedList);
-          localStorage.setItem('entryList', JSON.stringify(updatedList));
-        }
-      }
-
       // 1日のエントリー回数を更新
       const updatedDailyEntries = {
         ...dailyEntries,
@@ -188,6 +229,7 @@ export default function PointEntryForm({
 
   const handleCancel = () => {
     setShowConfirmDialog(false);
+    setShowEntryConfirmDialog(false);
   };
 
   const formatDate = (date: Date) => {
@@ -200,30 +242,115 @@ export default function PointEntryForm({
 
   const todayEntryCount = gameUsername.trim() ? getTodayEntryCount(gameUsername.trim()) : 0;
 
-  return (
-    <>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {/* エントリー期間表示 */}
-        {entryStartDate && entryEndDate && (
-          <div className="rounded-lg bg-blue-500/20 p-3 text-sm text-blue-200 border border-blue-500/30">
-            {isEntryPeriodActive ? (
+  // エントリー期間中の表示
+  if (isEntryPeriodActive) {
+    return (
+      <>
+        <form onSubmit={handleEntrySubmit} className="space-y-4">
+          {/* エントリー期間表示 */}
+          {entryStartDate && entryEndDate && (
+            <div className="rounded-lg bg-blue-500/20 p-3 text-sm text-blue-200 border border-blue-500/30">
               <p>
                 エントリー期間: {formatDateTime(entryStartDate)} ～ {formatDateTime(entryEndDate)}
               </p>
-            ) : (
-              <p className="text-red-300">
-                エントリー期間は終了しました
+            </div>
+          )}
+
+          {/* タイトル */}
+          <div className="text-center mb-6">
+            <h2 className="text-2xl font-bold text-white mb-2">エントリーしますか？</h2>
+            <p className="text-sm text-white/60">エントリーは登録すると名前は変えられません</p>
+          </div>
+
+          {/* ゲーム内ユーザー名（任意） */}
+          <div>
+            <label htmlFor="game-username-entry" className="block mb-2 text-sm font-medium text-white">
+              ゲーム内ユーザー名（任意）
+            </label>
+            <input
+              id="game-username-entry"
+              type="text"
+              value={gameUsername}
+              onChange={(e) => !isRegistered && setGameUsername(e.target.value)}
+              placeholder="ゲーム内ユーザー名または自由記入"
+              disabled={isRegistered}
+              className="w-full rounded-lg bg-white/10 px-4 py-3 text-white placeholder-white/50 border border-white/20 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            />
+            <p className="mt-1 text-xs text-white/60">
+              ゲーム内ユーザー名または自由記入（任意）
+            </p>
+            {isRegistered && (
+              <p className="mt-1 text-xs text-yellow-400">
+                既にエントリー済みです。名前は変更できません。
               </p>
             )}
           </div>
-        )}
 
+          {error && (
+            <div className="rounded-lg bg-red-500/20 p-3 text-sm text-red-200 border border-red-500/30">
+              {error}
+            </div>
+          )}
+
+          {success && (
+            <div className="rounded-lg bg-green-500/20 p-3 text-sm text-green-200 border border-green-500/30">
+              エントリーが完了しました！
+            </div>
+          )}
+
+          {!isRegistered && (
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full rounded-lg bg-blue-600 px-6 py-3 font-semibold text-white transition-all hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? '登録中...' : 'エントリーする'}
+            </button>
+          )}
+        </form>
+
+        {/* エントリー確認ダイアログ */}
+        {showEntryConfirmDialog && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+            <div className="bg-black/90 rounded-2xl p-6 max-w-md w-full border border-white/20 shadow-2xl">
+              <h3 className="text-xl font-bold text-white mb-4">確認</h3>
+              <p className="text-white mb-2">
+                ゲーム内ユーザー名: <span className="font-semibold text-yellow-400">{gameUsername || '（未入力）'}</span>
+              </p>
+              <p className="text-red-300 text-sm mb-6">
+                エントリーは登録すると名前は変えられません。本当にお間違いないですか？
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={handleCancel}
+                  className="flex-1 rounded-lg bg-white/10 px-4 py-3 font-semibold text-white transition-all hover:bg-white/20"
+                >
+                  キャンセル
+                </button>
+                <button
+                  onClick={handleEntryConfirm}
+                  className="flex-1 rounded-lg bg-blue-600 px-4 py-3 font-semibold text-white transition-all hover:bg-blue-700"
+                >
+                  確認してエントリー
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </>
+    );
+  }
+
+  // エントリー期間後のポイント記入フォーム
+  return (
+    <>
+      <form onSubmit={handlePointSubmit} className="space-y-4">
         {/* 開催期間表示 */}
-        {eventEndDate && !isEntryPeriodActive && (
+        {eventEndDate && (
           <div className="rounded-lg bg-green-500/20 p-3 text-sm text-green-200 border border-green-500/30">
             {isEventPeriodActive ? (
               <p>
-                開催期間中: {eventEndDate && formatDate(eventEndDate)}まで
+                開催期間中: {formatDate(eventEndDate)}まで
               </p>
             ) : (
               <p className="text-red-300">
@@ -233,6 +360,7 @@ export default function PointEntryForm({
           </div>
         )}
 
+        {/* ゲーム内ユーザー名 */}
         <div>
           <label htmlFor="game-username" className="block mb-2 text-sm font-medium text-white">
             ゲーム内ユーザー名
@@ -256,6 +384,7 @@ export default function PointEntryForm({
           )}
         </div>
 
+        {/* ポイント */}
         <div>
           <label htmlFor="points" className="block mb-2 text-sm font-medium text-white">
             ポイント
