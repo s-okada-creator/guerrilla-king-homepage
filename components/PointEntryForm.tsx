@@ -5,11 +5,13 @@ import { useState, useEffect } from 'react';
 interface PointEntryFormProps {
   eventPeriodDays?: number; // 開催期間（エントリー締め切り後）
   isFirstRelease?: boolean; // 初回リリースかどうか
+  isTestMode?: boolean; // テストモードかどうか
 }
 
 export default function PointEntryForm({ 
   eventPeriodDays = 5,
-  isFirstRelease = true
+  isFirstRelease = true,
+  isTestMode = true // テストモードを有効化
 }: PointEntryFormProps) {
   const [gameUsername, setGameUsername] = useState('');
   const [points, setPoints] = useState('');
@@ -37,7 +39,28 @@ export default function PointEntryForm({
     const storedDailyEntries = localStorage.getItem('dailyEntries');
     const storedRegisteredUsername = localStorage.getItem('registeredUsername');
     
-    if (storedStartDate && storedEndDate && storedEventEndDate) {
+    // テストモードの場合は常に新しい期間を設定
+    if (isTestMode) {
+      // テスト用：今日の20時から20時10分まで（エントリー期間）
+      const startDate = new Date(today);
+      startDate.setHours(20, 0, 0, 0);
+      const endDate = new Date(today);
+      endDate.setHours(20, 10, 0, 0);
+      
+      // 開催期間：20時11分から20時20分まで
+      const eventEnd = new Date(today);
+      eventEnd.setHours(20, 20, 0, 0);
+      
+      setEntryStartDate(startDate);
+      setEntryEndDate(endDate);
+      setEventEndDate(eventEnd);
+      setIsEntryPeriodActive(today >= startDate && today <= endDate);
+      setIsEventPeriodActive(today <= eventEnd);
+      
+      localStorage.setItem('entryStartDate', startDate.toISOString());
+      localStorage.setItem('entryEndDate', endDate.toISOString());
+      localStorage.setItem('eventEndDate', eventEnd.toISOString());
+    } else if (storedStartDate && storedEndDate && storedEventEndDate) {
       const startDate = new Date(storedStartDate);
       const endDate = new Date(storedEndDate);
       const eventEnd = new Date(storedEventEndDate);
@@ -94,7 +117,7 @@ export default function PointEntryForm({
       setIsRegistered(true);
       setGameUsername(storedRegisteredUsername);
     }
-  }, [eventPeriodDays, isFirstRelease]);
+  }, [eventPeriodDays, isFirstRelease, isTestMode]);
 
   // 今日の日付をキーとして取得
   const getTodayKey = () => {
@@ -240,6 +263,10 @@ export default function PointEntryForm({
     return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日 ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}:${date.getSeconds().toString().padStart(2, '0')}`;
   };
 
+  const formatTime = (date: Date) => {
+    return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+  };
+
   const todayEntryCount = gameUsername.trim() ? getTodayEntryCount(gameUsername.trim()) : 0;
 
   // エントリー期間中の表示
@@ -251,8 +278,11 @@ export default function PointEntryForm({
           {entryStartDate && entryEndDate && (
             <div className="rounded-lg bg-blue-500/20 p-3 text-sm text-blue-200 border border-blue-500/30">
               <p>
-                エントリー期間: {formatDateTime(entryStartDate)} ～ {formatDateTime(entryEndDate)}
+                エントリー期間: {formatTime(entryStartDate)} ～ {formatTime(entryEndDate)}
               </p>
+              {isTestMode && (
+                <p className="text-xs mt-1 text-yellow-300">テストモード</p>
+              )}
             </div>
           )}
 
@@ -350,12 +380,15 @@ export default function PointEntryForm({
           <div className="rounded-lg bg-green-500/20 p-3 text-sm text-green-200 border border-green-500/30">
             {isEventPeriodActive ? (
               <p>
-                開催期間中: {formatDate(eventEndDate)}まで
+                開催期間中: {formatTime(eventEndDate)}まで
               </p>
             ) : (
               <p className="text-red-300">
                 開催期間は終了しました
               </p>
+            )}
+            {isTestMode && (
+              <p className="text-xs mt-1 text-yellow-300">テストモード</p>
             )}
           </div>
         )}

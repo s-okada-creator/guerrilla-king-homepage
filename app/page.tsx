@@ -32,6 +32,7 @@ export default function Home() {
               <PointEntryForm 
                 eventPeriodDays={5}
                 isFirstRelease={true}
+                isTestMode={true}
               />
             </div>
           </div>
